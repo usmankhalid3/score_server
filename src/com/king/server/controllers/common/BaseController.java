@@ -48,7 +48,7 @@ public abstract class BaseController implements SimpleServer {
 	private void writeResponse(String text) throws IOException {
 		Headers headers = exchange.get().getResponseHeaders();
 		headers.set("Content-Type", "text/html");
-		if (text != null && text.length() > 0) {
+		if (text != null) {
 			OutputStream os = exchange.get().getResponseBody();
 			os.write(text.getBytes());
 			os.close();

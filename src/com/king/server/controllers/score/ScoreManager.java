@@ -3,14 +3,13 @@ package com.king.server.controllers.score;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 
 import com.king.server.models.UserScore;
 import com.king.server.models.UserScore.UserScoreComparator;
 
-public class ScoreManager {
+public final class ScoreManager {
 
 	private static final int MAX_SCORES = 15;
 	
@@ -55,11 +54,34 @@ public class ScoreManager {
 	}
 	
 	public static String getHighScores(String levelId) {
-		StringBuilder sb = new StringBuilder();
-		List<UserScore> fetchedScores = new ArrayList<UserScore>();
 		Map<String, PriorityQueue<UserScore>> scoresMap = levelScores.get();
 		if (scoresMap.containsKey(levelId)) {
-			PriorityQueue<UserScore> scores = scoresMap.get(levelId);
+			ArrayList<UserScore> fetchedScores = fetchScores(levelId, scoresMap);
+			return buildResponse(fetchedScores);
+		}
+		else {
+			return "";
+		}
+	}
+	
+	private static String buildResponse(ArrayList<UserScore> scores) {
+		StringBuilder sb = new StringBuilder();
+		if (!scores.isEmpty()) {
+			for (UserScore s : scores) {
+				sb.append(s.getUserId());
+				sb.append("=");
+				sb.append(s.getScore());
+				sb.append(",");
+			}
+			sb.deleteCharAt(sb.length()-1);
+		}
+		return sb.toString();	
+	}
+	
+	private static ArrayList<UserScore> fetchScores(String levelId, Map<String, PriorityQueue<UserScore>> scoresMap) {
+		ArrayList<UserScore> fetchedScores = new ArrayList<UserScore>();
+		PriorityQueue<UserScore> scores = scoresMap.get(levelId);
+		if (!scores.isEmpty()) {
 			PriorityQueue<UserScore> highScores = new PriorityQueue<UserScore>(scores);
 			while (!highScores.isEmpty()) {
 				UserScore score = highScores.poll();
@@ -68,17 +90,7 @@ public class ScoreManager {
 				}
 			}
 			Collections.reverse(fetchedScores);
-			for (UserScore s : fetchedScores) {
-				sb.append(s.getUserId());
-				sb.append("=");
-				sb.append(s.getScore());
-				sb.append(",");
-			}
-			sb.deleteCharAt(sb.length()-1);
-			return sb.toString();
 		}
-		else {
-			return "";
-		}
+		return fetchedScores;
 	}
 }

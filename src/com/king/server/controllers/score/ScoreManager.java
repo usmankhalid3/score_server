@@ -103,4 +103,8 @@ public final class ScoreManager {
 		}
 		return fetchedScores;
 	}
+	
+	public void deleteAllScores() {
+		levels = new HashMap<String, PriorityQueue<UserScore>>();
+	}
 }

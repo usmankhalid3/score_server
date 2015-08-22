@@ -9,7 +9,6 @@ import com.king.server.session.SessionManager;
 
 public class SessionTest extends TestCase {
 
-	
 	@Override
 	public void setUp() throws Exception {
 		super.setUp();

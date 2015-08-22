@@ -13,6 +13,12 @@ import com.king.server.models.UserScore.UserScoreComparator;
 
 public class ScoreTest extends TestCase {
 
+	@Override
+	public void tearDown() throws Exception {
+		super.tearDown();
+		ScoreManager.getInstance().deleteAllScores();
+	}
+
 	@Test
 	public void testScoreAdd() {
 		String levelId = "1";
@@ -52,6 +58,7 @@ public class ScoreTest extends TestCase {
 			ScoreManager.getInstance().add(levelId, score.getUserId(), score.getScore());
 		}
 		String highScores = ScoreManager.getInstance().getHighScores(levelId);
+
 		assertEquals(highScores, expectedString);
 	}
 

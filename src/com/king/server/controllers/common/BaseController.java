@@ -19,7 +19,6 @@ public abstract class BaseController implements SimpleServer {
 	private static final String VALUE_DELIM = "=";
 	protected static final String PARAM_ID = "contextid";
 	protected static final String PARAM_SESSION = "sessionkey";
-	//protected static final String PARAM_LEVEL = "levelid";
 	
 	public void handle(HttpExchange exchange) throws IOException {
 		this.exchange.set(exchange);
@@ -41,7 +40,11 @@ public abstract class BaseController implements SimpleServer {
 	}
 	
 	protected void error(String resp) throws IOException {
-		exchange.get().sendResponseHeaders(HttpStatusCode.ERROR, resp.getBytes().length);
+		error(HttpStatusCode.SERVER_ERROR, resp);
+	}
+	
+	protected void error(int errorCode, String resp) throws IOException {
+		exchange.get().sendResponseHeaders(errorCode, resp.getBytes().length);
 		writeResponse(resp);
 	}
 	

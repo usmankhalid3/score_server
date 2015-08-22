@@ -17,9 +17,7 @@ public class CryptoUtils {
 			return sb.toString();
 		}
 		catch(NoSuchAlgorithmException e) {
-			//TODO handle this
+			throw new RuntimeException("Could not generate md5: " + e.getMessage());
 		}
-		
-		return "";
 	}	
 }

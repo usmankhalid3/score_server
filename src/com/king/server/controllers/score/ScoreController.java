@@ -6,14 +6,16 @@ import java.util.Map;
 import java.util.Scanner;
 
 import com.king.server.controllers.common.BaseController;
+import com.king.server.models.Session;
 import com.king.server.session.SessionManager;
+import com.king.server.util.HttpStatusCode;
 
 public class ScoreController extends BaseController {
 
 	public void handleGET(final Map<String, String> params) throws IOException {
 		String levelId = params.get(PARAM_ID);
 		if (levelId != null) {
-			String highscores = ScoreManager.getHighScores(levelId);
+			String highscores = ScoreManager.getInstance().getHighScores(levelId);
 			success(highscores);
 		}
 		else {
@@ -26,28 +28,28 @@ public class ScoreController extends BaseController {
 		if (levelId != null) {
 			String sessionId = params.get(PARAM_SESSION);
 			if (sessionId != null) {
-				boolean isValid = SessionManager.isValid(sessionId);
-				if (isValid) {
-					String userId = SessionManager.getUserId(sessionId);
+				Session session = SessionManager.getInstance().validateSession(sessionId);
+				if (session != null) {
+					String userId = session.getUserId();
 					Integer score = getScoreFromBody(body);
 					if (score == -1) {
 						error("Score is required");
 					}
 					else {
-						ScoreManager.add(levelId, userId, score);
-						success("Score added!");
+						ScoreManager.getInstance().add(levelId, userId, score);
+						success("Score saved");
 					}
 				}
 				else {
-					error("Invalid session");
+					error(HttpStatusCode.INVALID_SESSION, "Invalid session");
 				}
 			}
 			else {
-				error("sessionkey is required");
+				error(HttpStatusCode.INVALID_SESSION, "sessionkey is required");
 			}
 		}
 		else {
-			error("levelid is required");
+			error(HttpStatusCode.TARGET_UNRESOLVABLE, "levelid is required");
 		}
 	}
 	

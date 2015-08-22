@@ -11,39 +11,48 @@ import com.king.server.models.UserScore.UserScoreComparator;
 
 public final class ScoreManager {
 
+	private static ScoreManager instance;
 	private static final int MAX_SCORES = 15;
+	private static volatile Map<String, PriorityQueue<UserScore>> levels = new HashMap<String, PriorityQueue<UserScore>>();
 	
-	private static ThreadLocal<Map<String, PriorityQueue<UserScore>>> levelScores = new ThreadLocal<Map<String, PriorityQueue<UserScore>>>() {
-		 @Override 
-		 protected Map<String, PriorityQueue<UserScore>> initialValue() {
-			 return new HashMap<String, PriorityQueue<UserScore>>();
-		 }
-	};
+	private ScoreManager() {
+		
+	}
 	
-	public static void add(String levelId, String userId, Integer score) {
-		Map<String, PriorityQueue<UserScore>> scoresMap = levelScores.get();
+	public static ScoreManager getInstance() {
+		if (instance == null) {
+			instance = new ScoreManager();
+		}
+		return instance;
+	}
+	
+	public void add(String levelId, String userId, Integer score) {
 		UserScore newScore = new UserScore(userId, score);
-		if (scoresMap.containsKey(levelId)) {
-			PriorityQueue<UserScore> scores = scoresMap.get(levelId);
-			if (scores.size() < MAX_SCORES) {
-				addScore(scores, newScore);
-			}
-			else {
-				UserScore lowestScore = scores.peek();
-				if (!scores.contains(newScore) && score > lowestScore.getScore()) {
-					scores.poll();
-					addScore(scores, newScore);
+		synchronized (levels) {
+			if (levels.containsKey(levelId)) {
+				PriorityQueue<UserScore> scores = levels.get(levelId);
+				synchronized (scores) {
+					if (scores.size() < MAX_SCORES) {
+						addScore(scores, newScore);
+					}
+					else {
+						UserScore lowestScore = scores.peek();
+						if (!scores.contains(newScore) && score > lowestScore.getScore()) {
+							scores.poll();
+							addScore(scores, newScore);
+						}
+					}
 				}
 			}
-		}
-		else {
-			PriorityQueue<UserScore> scores = new PriorityQueue<UserScore>(MAX_SCORES, new UserScoreComparator());
-			scores.add(new UserScore(userId, score));
-			scoresMap.put(levelId, scores);
+			else {
+				PriorityQueue<UserScore> scores = new PriorityQueue<UserScore>(MAX_SCORES, new UserScoreComparator());
+				scores.add(new UserScore(userId, score));
+				levels.put(levelId, scores);
+			}
 		}
 	}
 	
-	private static void addScore(PriorityQueue<UserScore> scores, UserScore newScore) {
+	private void addScore(PriorityQueue<UserScore> scores, UserScore newScore) {
 		for (UserScore score : scores) {
 			if (score.getUserId().equals(newScore.getUserId())) {
 				scores.remove(score);
@@ -53,18 +62,19 @@ public final class ScoreManager {
 		scores.add(newScore);
 	}
 	
-	public static String getHighScores(String levelId) {
-		Map<String, PriorityQueue<UserScore>> scoresMap = levelScores.get();
-		if (scoresMap.containsKey(levelId)) {
-			ArrayList<UserScore> fetchedScores = fetchScores(levelId, scoresMap);
-			return buildResponse(fetchedScores);
-		}
-		else {
-			return "";
+	public String getHighScores(String levelId) {
+		synchronized (levels) {
+			if (levels.containsKey(levelId)) {
+				ArrayList<UserScore> fetchedScores = fetchScores(levelId);
+				return buildResponse(fetchedScores);
+			}
+			else {
+				return "";
+			}	
 		}
 	}
 	
-	private static String buildResponse(ArrayList<UserScore> scores) {
+	private String buildResponse(ArrayList<UserScore> scores) {
 		StringBuilder sb = new StringBuilder();
 		if (!scores.isEmpty()) {
 			for (UserScore s : scores) {
@@ -78,9 +88,9 @@ public final class ScoreManager {
 		return sb.toString();	
 	}
 	
-	private static ArrayList<UserScore> fetchScores(String levelId, Map<String, PriorityQueue<UserScore>> scoresMap) {
+	private ArrayList<UserScore> fetchScores(String levelId) {
 		ArrayList<UserScore> fetchedScores = new ArrayList<UserScore>();
-		PriorityQueue<UserScore> scores = scoresMap.get(levelId);
+		PriorityQueue<UserScore> scores = levels.get(levelId);
 		if (!scores.isEmpty()) {
 			PriorityQueue<UserScore> highScores = new PriorityQueue<UserScore>(scores);
 			while (!highScores.isEmpty()) {

@@ -59,7 +59,13 @@ public class UserScore {
 
 		@Override
 		public int compare(UserScore o1, UserScore o2) {
-			return o1.getScore().compareTo(o2.getScore());
+			if (o1.getScore().equals(o2.getScore())) {
+				// if score is equal do comparison based on userId
+				return o1.getUserId().compareTo(o2.getUserId());
+			}
+			else {
+				return o1.getScore().compareTo(o2.getScore());
+			}
 		}
 		
 	}

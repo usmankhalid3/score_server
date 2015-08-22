@@ -15,7 +15,7 @@ import com.sun.net.httpserver.HttpHandler;
 public class RequestHandler implements HttpHandler {
 
 	private static final String PATH_DELIM = "/";
-	private static final String ID_PARAM = "contextid";
+	private static final String PARAM_ID = "contextid";
 	
 	public void handle(HttpExchange exchange) throws IOException {
 		String method = exchange.getRequestMethod();
@@ -23,16 +23,15 @@ public class RequestHandler implements HttpHandler {
 		System.out.println("Incoming request: " + method + " - " + uri);
 		String[] uriParts = parseURI(uri);
 		if (uriParts != null && uriParts.length > 1) {
-			exchange.setAttribute(ID_PARAM, uriParts[0]);
+			exchange.setAttribute(PARAM_ID, uriParts[0]);
 			routeRequest(uriParts[1], exchange);
 		}
 		else {
-			error(exchange, "Missing an id, could not route the request");
+			error(exchange, HttpStatusCode.TARGET_UNRESOLVABLE, "Missing an id, failed to route the request");
 		}
 	}
 	
 	private void routeRequest(String target, HttpExchange exchange) throws IOException {
-		System.out.println("Routing request to: " + target);
 		BaseController controller;
 		switch(target) {
 			case "login": controller = new LoginController(); break;
@@ -41,15 +40,16 @@ public class RequestHandler implements HttpHandler {
 			default: controller = null;
 		}
 		if (controller != null) {
+			System.out.println("Routing request to: " + controller.getClass().getSimpleName());
 			controller.handle(exchange);
 		}
 		else {
-			error(exchange, "Target unresolvable, could not route the request");
+			error(exchange, HttpStatusCode.TARGET_UNRESOLVABLE, "Target unresolvable, failed to route the request");
 		}
 	}
 	
-	private void error(HttpExchange exchange, String resp) throws IOException {
-		exchange.sendResponseHeaders(HttpStatusCode.ERROR, resp.getBytes().length);
+	private void error(HttpExchange exchange, int errorCode, String resp) throws IOException {
+		exchange.sendResponseHeaders(errorCode, resp.getBytes().length);
 		Headers headers = exchange.getResponseHeaders();
 		headers.set("Content-Type", "text/html");
 		OutputStream os = exchange.getResponseBody();

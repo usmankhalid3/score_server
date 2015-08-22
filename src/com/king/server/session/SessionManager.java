@@ -9,45 +9,65 @@ import com.king.server.util.CryptoUtils;
 
 public final class SessionManager {
 
-	private static final long SESSION_EXPIRY = 600000;	//10 minutes
-	private static ThreadLocal<Map<String, Session>> sessions = new ThreadLocal<Map<String, Session>>() {
-		 @Override 
-		 protected Map<String, Session> initialValue() {
-		        return new HashMap<String, Session>();
-		    }
-	};
+	private static SessionManager instance;
+	private static long SESSION_EXPIRY = 6 * 1000;	//10 minutes
+	private int cleanUpPeriod = 8 * 1000; // every 12 minutes
+	private volatile Map<String, Session> sessions;
+	private long lastCleanedAt;
 	
-	public static void persist(String sessionId, Session session) {
-		Map<String, Session> map = sessions.get();
-		map.put(sessionId, session);
+	private SessionManager() {
+		sessions = new HashMap<String, Session>();
+		lastCleanedAt = System.currentTimeMillis();
 	}
 	
-	public static Session generate(String userId, long nonce) {
+	public static SessionManager getInstance() {
+		if (instance == null) {
+			instance = new SessionManager();
+		}
+		return instance;
+	}
+	
+	public void setExpiry(int expiry) {
+		SESSION_EXPIRY = expiry;
+	}
+	
+	public void persist(String sessionId, Session session) {
+		sessions.put(sessionId, session);
+	}
+	
+	public Session generate(String userId) {
 		String salt = ServerConfig.getSalt();
+		long nonce = System.currentTimeMillis();
 		String token = userId + nonce + salt;
 		String sessionId =  CryptoUtils.generateMD5(token);
 		Session session = new Session(sessionId, userId, nonce);
 		return session;
 	}
 	
-	public static boolean isValid(String sessionId) {
-		Map<String, Session> map = sessions.get();
-		if (map.containsKey(sessionId)) {
-			Session session = map.get(sessionId);
+	public Session validateSession(String sessionId) {
+		if (sessions.containsKey(sessionId)) {
+			Session session = sessions.get(sessionId);
 			long now = System.currentTimeMillis();
 			if (session.hasExpired(now, SESSION_EXPIRY)) {
-				return false;
+				return null;
 			}
-			return true;
+			if (now - lastCleanedAt > cleanUpPeriod) {
+				doCleanup();
+			}
+			return session;
 		}
-		return false;
+		return null;
 	}
 	
-	public static String getUserId(String sessionId) {
-		Map<String, Session> map = sessions.get();
-		if (map.containsKey(sessionId)) {
-			return map.get(sessionId).getUserId();
+	private void doCleanup() {
+		System.out.println("Cleaning up old sessions..");
+		long now = System.currentTimeMillis();
+		lastCleanedAt = now;
+		for (String sessionId : sessions.keySet()) {
+			Session session = sessions.get(sessionId);
+			if (session.hasExpired(now, SESSION_EXPIRY)) {
+				sessions.remove(sessionId);
+			}
 		}
-		return "";
 	}
 }

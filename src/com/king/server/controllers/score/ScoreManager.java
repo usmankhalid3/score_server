@@ -67,7 +67,7 @@ public final class ScoreManager {
 	}
 	
 	private String buildResponse(ArrayList<UserScore> scores) {
-		StringBuilder sb = new StringBuilder();
+		StringBuffer sb = new StringBuffer();
 		if (!scores.isEmpty()) {
 			for (UserScore s : scores) {
 				sb.append(s.getUserId());

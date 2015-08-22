@@ -12,4 +12,7 @@ It exposes 3 APIs
 - Post Scores
 	- Used for posting scores of a user for a certain level.
 	- Requires a session Id to process request.
-	- Uses the session Id to retrieve the corresponding user Id for storing the score.
+	- Uses the session Id to retrieve corresponding user Id for persisting the score.
+
+- Get High Scores
+	- Returns a list of no more than 15 highest scores in the csv format <user_id>=<score> for a level

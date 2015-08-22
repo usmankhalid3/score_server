@@ -3,6 +3,7 @@
 This is a sample score server. 
 
 - Server runs on port 1435
+- Configurations are located under com/king/config/ServerConfig.java
 - To run the server, type this in the root directory: java -jar server.jar
 
 It exposes 3 APIs

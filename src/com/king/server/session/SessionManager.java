@@ -1,7 +1,7 @@
 package com.king.server.session;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import com.king.server.config.ServerConfig;
 import com.king.server.models.Session;
@@ -9,41 +9,36 @@ import com.king.server.util.CryptoUtils;
 
 public final class SessionManager {
 
-	private static SessionManager instance;
-	private static long SESSION_EXPIRY = 6 * 1000;	//10 minutes
-	private int cleanUpPeriod = 8 * 1000; // every 12 minutes
-	private volatile Map<String, Session> sessions;
-	private long lastCleanedAt;
-	
+	private static SessionManager instance = new SessionManager();
+	private static long SESSION_EXPIRY = 10 * 60 * 1000; // 10 minutes
+	private int cleanUpPeriod = 12 * 60 * 1000; // every 12 minutes
+	private ConcurrentMap<String, Session> sessions = new ConcurrentHashMap<String, Session>();
+	private long lastCleanedAt = System.currentTimeMillis();
+
 	private SessionManager() {
-		sessions = new HashMap<String, Session>();
-		lastCleanedAt = System.currentTimeMillis();
 	}
-	
+
 	public static SessionManager getInstance() {
-		if (instance == null) {
-			instance = new SessionManager();
-		}
 		return instance;
 	}
-	
+
 	public void setExpiry(int expiry) {
 		SESSION_EXPIRY = expiry;
 	}
-	
+
 	public void persist(String sessionId, Session session) {
 		sessions.put(sessionId, session);
 	}
-	
+
 	public Session generate(String userId) {
 		String salt = ServerConfig.getSalt();
 		long nonce = System.currentTimeMillis();
 		String token = userId + nonce + salt;
-		String sessionId =  CryptoUtils.generateMD5(token);
+		String sessionId = CryptoUtils.generateMD5(token);
 		Session session = new Session(sessionId, userId, nonce);
 		return session;
 	}
-	
+
 	public Session validateSession(String sessionId) {
 		if (sessions.containsKey(sessionId)) {
 			Session session = sessions.get(sessionId);
@@ -58,7 +53,7 @@ public final class SessionManager {
 		}
 		return null;
 	}
-	
+
 	private void doCleanup() {
 		System.out.println("Cleaning up old sessions..");
 		long now = System.currentTimeMillis();

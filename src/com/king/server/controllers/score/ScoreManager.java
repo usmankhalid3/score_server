@@ -2,53 +2,47 @@ package com.king.server.controllers.score;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import com.king.server.models.UserScore;
 import com.king.server.models.UserScore.UserScoreComparator;
 
 public final class ScoreManager {
 
-	private static ScoreManager instance;
+	private static ScoreManager instance = new ScoreManager();
 	private static final int MAX_SCORES = 15;
-	private static volatile Map<String, PriorityQueue<UserScore>> levels = new HashMap<String, PriorityQueue<UserScore>>();
+	private static ConcurrentMap<String, PriorityQueue<UserScore>> levels = new ConcurrentHashMap<String, PriorityQueue<UserScore>>();
 	
 	private ScoreManager() {
-		
 	}
 	
 	public static ScoreManager getInstance() {
-		if (instance == null) {
-			instance = new ScoreManager();
-		}
 		return instance;
 	}
 	
 	public void add(String levelId, String userId, Integer score) {
 		UserScore newScore = new UserScore(userId, score);
-		synchronized (levels) {
-			if (levels.containsKey(levelId)) {
-				PriorityQueue<UserScore> scores = levels.get(levelId);
-				synchronized (scores) {
-					if (scores.size() < MAX_SCORES) {
+		if (levels.containsKey(levelId)) {
+			PriorityQueue<UserScore> scores = levels.get(levelId);
+			synchronized (scores) {
+				if (scores.size() < MAX_SCORES) {
+					addScore(scores, newScore);
+				}
+				else {
+					UserScore lowestScore = scores.peek();
+					if (!scores.contains(newScore) && score > lowestScore.getScore()) {
+						scores.poll();
 						addScore(scores, newScore);
-					}
-					else {
-						UserScore lowestScore = scores.peek();
-						if (!scores.contains(newScore) && score > lowestScore.getScore()) {
-							scores.poll();
-							addScore(scores, newScore);
-						}
 					}
 				}
 			}
-			else {
-				PriorityQueue<UserScore> scores = new PriorityQueue<UserScore>(MAX_SCORES, new UserScoreComparator());
-				scores.add(new UserScore(userId, score));
-				levels.put(levelId, scores);
-			}
+		}
+		else {
+			PriorityQueue<UserScore> scores = new PriorityQueue<UserScore>(MAX_SCORES, new UserScoreComparator());
+			scores.add(new UserScore(userId, score));
+			levels.put(levelId, scores);
 		}
 	}
 	
@@ -63,15 +57,13 @@ public final class ScoreManager {
 	}
 	
 	public String getHighScores(String levelId) {
-		synchronized (levels) {
-			if (levels.containsKey(levelId)) {
-				ArrayList<UserScore> fetchedScores = fetchScores(levelId);
-				return buildResponse(fetchedScores);
-			}
-			else {
-				return "";
-			}	
+		if (levels.containsKey(levelId)) {
+			ArrayList<UserScore> fetchedScores = fetchScores(levelId);
+			return buildResponse(fetchedScores);
 		}
+		else {
+			return "";
+		}	
 	}
 	
 	private String buildResponse(ArrayList<UserScore> scores) {
@@ -91,20 +83,22 @@ public final class ScoreManager {
 	private ArrayList<UserScore> fetchScores(String levelId) {
 		ArrayList<UserScore> fetchedScores = new ArrayList<UserScore>();
 		PriorityQueue<UserScore> scores = levels.get(levelId);
-		if (!scores.isEmpty()) {
-			PriorityQueue<UserScore> highScores = new PriorityQueue<UserScore>(scores);
-			while (!highScores.isEmpty()) {
-				UserScore score = highScores.poll();
-				if (score != null) {
-					fetchedScores.add(score);
+		synchronized(scores) {
+			if (!scores.isEmpty()) {
+				PriorityQueue<UserScore> highScores = new PriorityQueue<UserScore>(scores);
+				while (!highScores.isEmpty()) {
+					UserScore score = highScores.poll();
+					if (score != null) {
+						fetchedScores.add(score);
+					}
 				}
+				Collections.reverse(fetchedScores);
 			}
-			Collections.reverse(fetchedScores);
 		}
 		return fetchedScores;
 	}
 	
 	public void deleteAllScores() {
-		levels = new HashMap<String, PriorityQueue<UserScore>>();
+		levels = new ConcurrentHashMap<String, PriorityQueue<UserScore>>();
 	}
 }

@@ -7,7 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 
-import com.king.server.controllers.score.UserScore.UserScoreComparator;
+import com.king.server.models.UserScore;
+import com.king.server.models.UserScore.UserScoreComparator;
 
 public class ScoreManager {
 
@@ -22,22 +23,35 @@ public class ScoreManager {
 	
 	public static void add(String levelId, String userId, Integer score) {
 		Map<String, PriorityQueue<UserScore>> scoresMap = levelScores.get();
+		UserScore newScore = new UserScore(userId, score);
 		if (scoresMap.containsKey(levelId)) {
 			PriorityQueue<UserScore> scores = scoresMap.get(levelId);
 			if (scores.size() < MAX_SCORES) {
-				scores.add(new UserScore(userId, score));
+				addScore(scores, newScore);
 			}
 			else {
 				UserScore lowestScore = scores.peek();
-				if (score > lowestScore.getScore()) {
+				if (!scores.contains(newScore) && score > lowestScore.getScore()) {
 					scores.poll();
-					scores.add(new UserScore(userId, score));
+					addScore(scores, newScore);
 				}
 			}
 		}
 		else {
-			scoresMap.put(levelId, new PriorityQueue<UserScore>(MAX_SCORES, new UserScoreComparator()));
+			PriorityQueue<UserScore> scores = new PriorityQueue<UserScore>(MAX_SCORES, new UserScoreComparator());
+			scores.add(new UserScore(userId, score));
+			scoresMap.put(levelId, scores);
 		}
+	}
+	
+	private static void addScore(PriorityQueue<UserScore> scores, UserScore newScore) {
+		for (UserScore score : scores) {
+			if (score.getUserId().equals(newScore.getUserId())) {
+				scores.remove(score);
+				break;
+			}
+		}
+		scores.add(newScore);
 	}
 	
 	public static String getHighScores(String levelId) {
@@ -49,7 +63,9 @@ public class ScoreManager {
 			PriorityQueue<UserScore> highScores = new PriorityQueue<UserScore>(scores);
 			while (!highScores.isEmpty()) {
 				UserScore score = highScores.poll();
-				fetchedScores.add(score);
+				if (score != null) {
+					fetchedScores.add(score);
+				}
 			}
 			Collections.reverse(fetchedScores);
 			for (UserScore s : fetchedScores) {
@@ -58,7 +74,7 @@ public class ScoreManager {
 				sb.append(s.getScore());
 				sb.append(",");
 			}
-			//sb.deleteCharAt(sb.length()-1);
+			sb.deleteCharAt(sb.length()-1);
 			return sb.toString();
 		}
 		else {
